@@ -7,8 +7,6 @@ This plugin allows you to see all the relevant information from your Quatt Heat 
 More info about Quatt heat pumps:
 http://www.quatt.io
 
-![image](https://github.com/galadril/Domoticz-Quatt-Plugin/assets/14561640/799185ab-bb52-41dd-b11e-948963565f9f)
-
 
 ## Installation
 
