@@ -22,7 +22,7 @@ To install:
 
 * Open the Domoticz web interface.
 * Go to Setup > Hardware.
-* Add a new hardware with type Quatt Discovery.
+* Add a new hardware with under the type Quatt.
 * Set the Scan interval (in seconds) for how often the plugin should scan for Quatt devices.
 * Save and close the dialog.
 
