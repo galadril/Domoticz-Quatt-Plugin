@@ -1,5 +1,5 @@
 """
-<plugin key="Quatt" name="Quatt" author="Mark Heinis" version="0.0.1" wikilink="http://www.domoticz.com/wiki/plugins/plugin.html" externallink="https://github.com/galadril/Domoticz-Quatt-Plugin">
+<plugin key="Quatt" name="Quatt" author="Mark Heinis" version="0.0.2" wikilink="http://www.domoticz.com/wiki/plugins/plugin.html" externallink="https://github.com/galadril/Domoticz-Quatt-Plugin">
     <description>
         Plugin for retrieving and updating Quatt data.
         More info about Quatt: https://www.quatt.io/
@@ -43,17 +43,33 @@ class QuattPlugin:
             
         self.debug_level = Parameters["Mode6"]
         
-        # Create Domoticz devices as needed
-        if len(Devices) == 0:
+        if ( 1 not in Devices ):
             Domoticz.Device(Name="Status", Unit=1, TypeName="Text", Image=7).Create()
+        if ( 2 not in Devices ):            
             Domoticz.Device(Name="Room Temperature", Unit=2, TypeName="Temperature").Create()
+        if ( 3 not in Devices ):
             Domoticz.Device(Name="Set Room Temperature", Unit=3, TypeName="Temperature").Create()
+        if ( 4 not in Devices ):            
             Domoticz.Device(Name="Water Inlet Temperature", Unit=4, TypeName="Temperature").Create()
+        if ( 5 not in Devices ):
             Domoticz.Device(Name="Water Outlet Temperature", Unit=5, TypeName="Temperature").Create()
+        if ( 6 not in Devices ):            
             Domoticz.Device(Name="Supply Outlet Temperature", Unit=6, TypeName="Temperature").Create()
+        if ( 7 not in Devices ):
             Domoticz.Device(Name="Supply Inlet Temperature", Unit=7, TypeName="Temperature").Create()
+        if ( 8 not in Devices ):            
             Domoticz.Device(Name="Flow Rate", Unit=8, TypeName="Custom", Image=11).Create()
-                
+        if ( 9 not in Devices ):            
+            Domoticz.Device(Name="OutsideTemperature", Unit=9, TypeName="Temperature").Create()
+        if ( 10 not in Devices ):
+            Domoticz.Device(Name="Request Room Temperature", Unit=10, TypeName="Temperature").Create()
+        if ( 11 not in Devices ):
+            Domoticz.Device(Name="Power", Unit=11, TypeName="Usage").Create()
+        if ( 12 not in Devices ):
+            Domoticz.Device(Name="Power Input", Unit=12, TypeName="Usage").Create()
+        if ( 13 not in Devices ):
+            Domoticz.Device(Name="COP", Unit=13, TypeName="Custom", Options={"ValueQuantity": "Custom", "ValueUnits": "COP"}).Create() 
+            
         self.httpConn = Domoticz.Connection(Name="Quatt", Transport="TCP/IP", Protocol="HTTP", Address=Parameters["Address"], Port=Parameters["Port"])
         self.httpConn.Connect()
         
@@ -117,6 +133,7 @@ def processResponse(self, data):
             99: 'Fault - circulation pump on',
         }.get(QuattCM, 'Unknown')
         Domoticz.Log("Quatt Status: " + Quatt_Status)
+        COP = round(data["hp1"]["power"] / data["hp1"]["powerInput"], 2)
         
         Devices[1].Update(nValue=1, sValue=str(Quatt_Status), TimedOut=0)
         Devices[2].Update(nValue=1, sValue=str(data["thermostat"]["otFtRoomTemperature"]), TimedOut=0)
@@ -126,6 +143,12 @@ def processResponse(self, data):
         Devices[6].Update(nValue=1, sValue=str(data["boiler"]["otFbSupplyOutletTemperature"]), TimedOut=0)
         Devices[7].Update(nValue=1, sValue=str(data["boiler"]["otFbSupplyInletTemperature"]), TimedOut=0)
         Devices[8].Update(nValue=1, sValue=str(data["flowMeter"]["flowRate"]), TimedOut=0)
+        Devices[9].Update(nValue=1, sValue=str(data["hp1"]["temperatureOutside"]), TimedOut=0)
+        Devices[10].Update(nValue=1, sValue=str(data["thermostat"]["otFtControlSetpoint"]), TimedOut=0)
+        Devices[11].Update(nValue=1, sValue=str(round(data["hp1"]["power"], 2)) + ";" + str(round(data["hp1"]["power"], 2)), TimedOut=0)
+        Devices[12].Update(nValue=1, sValue=str(round(data["hp1"]["powerInput"], 2)) + ";" + str(round(data["hp1"]["powerInput"], 2)), TimedOut=0)
+        Devices[13].Update(nValue=1, sValue=str(COP), TimedOut=0)
+        
     except Exception as e:
         Domoticz.Error("Error fetching Quatt data: {}".format(str(e)))
         
