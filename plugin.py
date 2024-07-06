@@ -1,5 +1,5 @@
 """
-<plugin key="Quatt" name="Quatt" author="Mark Heinis" version="0.0.3" wikilink="http://www.domoticz.com/wiki/plugins/plugin.html" externallink="https://github.com/galadril/Domoticz-Quatt-Plugin">
+<plugin key="Quatt" name="Quatt" author="Mark Heinis" version="0.0.4" wikilink="http://www.domoticz.com/wiki/plugins/plugin.html" externallink="https://github.com/galadril/Domoticz-Quatt-Plugin">
     <description>
         Plugin for retrieving and updating Quatt data.
         More info about Quatt: https://www.quatt.io/
@@ -43,34 +43,7 @@ class QuattPlugin:
             
         self.debug_level = Parameters["Mode6"]
         
-        if ( 1 not in Devices ):
-            Domoticz.Device(Name="Status", Unit=1, TypeName="Text", Image=7).Create()
-        if ( 2 not in Devices ):            
-            Domoticz.Device(Name="Room Temperature", Unit=2, TypeName="Temperature").Create()
-        if ( 3 not in Devices ):
-            Domoticz.Device(Name="Set Room Temperature", Unit=3, TypeName="Temperature").Create()
-        if ( 4 not in Devices ):            
-            Domoticz.Device(Name="Water Inlet Temperature", Unit=4, TypeName="Temperature").Create()
-        if ( 5 not in Devices ):
-            Domoticz.Device(Name="Water Outlet Temperature", Unit=5, TypeName="Temperature").Create()
-        if ( 6 not in Devices ):            
-            Domoticz.Device(Name="Supply Outlet Temperature", Unit=6, TypeName="Temperature").Create()
-        if ( 7 not in Devices ):
-            Domoticz.Device(Name="Supply Inlet Temperature", Unit=7, TypeName="Temperature").Create()
-        if ( 8 not in Devices ):            
-            Domoticz.Device(Name="Flow Rate", Unit=8, TypeName="Custom", Image=11).Create()
-        if ( 9 not in Devices ):            
-            Domoticz.Device(Name="OutsideTemperature", Unit=9, TypeName="Temperature").Create()
-        if ( 10 not in Devices ):
-            Domoticz.Device(Name="Request Room Temperature", Unit=10, TypeName="Temperature").Create()
-        if ( 11 not in Devices ):
-            Domoticz.Device(Name="Power", Unit=11, TypeName="Usage").Create()
-        if ( 12 not in Devices ):
-            Domoticz.Device(Name="Power Input", Unit=12, TypeName="Usage").Create()
-        if ( 13 not in Devices ):
-            Domoticz.Device(Name="COP", Unit=13, TypeName="Custom", Options={"ValueQuantity": "Custom", "ValueUnits": "COP"}).Create() 
-        if ( 14 not in Devices ):            
-            Domoticz.Device(Name="Flow Rate Filtered", Unit=14, TypeName="Custom", Image=11).Create()
+        createDevices(self)
             
         self.httpConn = Domoticz.Connection(Name="Quatt", Transport="TCP/IP", Protocol="HTTP", Address=Parameters["Address"], Port=Parameters["Port"])
         self.httpConn.Connect()
@@ -118,84 +91,6 @@ class QuattPlugin:
 
     def onDisconnect(self, Connection):
         Domoticz.Log("onDisconnect called for connection to: " + Connection.Address + ":" + Connection.Port)
- 
-def processResponse(self, data):
-    Domoticz.Debug("processResponse called: " + str(data))
-    try:
-        QuattCM = data["qc"]["supervisoryControlMode"]
-        Quatt_Status = {
-            0: 'Standby',
-            1: 'Standby - heating',
-            2: 'Heating - heatpump only',
-            3: 'Heating - heatpump + boiler',
-            4: 'Heating - boiler only',
-            96: 'Anti-Freeze protection - boiler only',
-            97: 'Anti-Freeze protection - boiler pre-pump',
-            98: 'Anti-Freeze protection - water circulation',
-            99: 'Fault - circulation pump on',
-        }.get(QuattCM, 'Unknown')
-        Domoticz.Log("Quatt Status: " + Quatt_Status)
-        COP = round(data["hp1"]["power"] / data["hp1"]["powerInput"], 2)
-        
-        try:
-            Devices[1].Update(nValue=1, sValue=str(Quatt_Status), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))            
-        try:
-            Devices[2].Update(nValue=1, sValue=str(data["thermostat"]["otFtRoomTemperature"]), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))
-        try:
-            Devices[3].Update(nValue=1, sValue=str(data["thermostat"]["otFtRoomSetpoint"]), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))
-        try:
-            Devices[4].Update(nValue=1, sValue=str(data["hp1"]["temperatureWaterIn"]), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))
-        try:
-            Devices[5].Update(nValue=1, sValue=str(data["hp1"]["temperatureWaterOut"]), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))
-        try:
-            Devices[6].Update(nValue=1, sValue=str(data["boiler"]["otFbSupplyOutletTemperature"]), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))
-        try:
-            Devices[7].Update(nValue=1, sValue=str(data["boiler"]["otFbSupplyInletTemperature"]), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))
-        try:
-            Devices[8].Update(nValue=1, sValue=str(data["flowMeter"]["flowRate"]), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))
-        try:
-            Devices[9].Update(nValue=1, sValue=str(data["hp1"]["temperatureOutside"]), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))
-        try:
-            Devices[10].Update(nValue=1, sValue=str(data["thermostat"]["otFtControlSetpoint"]), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))
-        try:
-            Devices[11].Update(nValue=1, sValue=str(round(data["hp1"]["power"], 2)) + ";" + str(round(data["hp1"]["power"], 2)), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))
-        try:
-            Devices[12].Update(nValue=1, sValue=str(round(data["hp1"]["powerInput"], 2)) + ";" + str(round(data["hp1"]["powerInput"], 2)), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))
-        try:
-            Devices[13].Update(nValue=1, sValue=str(COP), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))
-        try:
-            Devices[14].Update(nValue=1, sValue=str(data["qc"]["flowRateFiltered"]), TimedOut=0)
-        except Exception as e:
-            Domoticz.Error("Error updating device 1: {}".format(str(e)))
-            
-    except Exception as e:
-        Domoticz.Error("Error fetching Quatt data: {}".format(str(e)))
         
 global _plugin
 _plugin = QuattPlugin()
@@ -245,3 +140,88 @@ def DumpConfigToLog():
         Domoticz.Debug("Device sValue:   '" + Devices[x].sValue + "'")
         Domoticz.Debug("Device LastLevel: " + str(Devices[x].LastLevel))
     return
+ 
+def createDevices(self):
+    device_definitions = [
+        (1, "Status", "Text", 7),
+        (2, "Room Temperature", "Temperature"),
+        (3, "Set Room Temperature", "Temperature"),
+        (4, "Water Inlet Temperature", "Temperature"),
+        (5, "Water Outlet Temperature", "Temperature"),
+        (6, "Supply Outlet Temperature", "Temperature"),
+        (7, "Supply Inlet Temperature", "Temperature"),
+        (9, "Outside Temperature", "Temperature"),
+        (10, "Request Room Temperature", "Temperature"),
+        (11, "Power", "Usage"),
+        (12, "Power Input", "Usage"),
+        (13, "COP", "Custom", {"ValueQuantity": "Custom", "ValueUnits": "COP"}),
+        (14, "Flow Rate Filtered", "Custom", 11),
+        (15, "Boiler On/Off", "Switch"),
+        (16, "CH Mode Active", "Switch"),
+        (17, "DHW Active", "Switch"),
+        (18, "Flame On", "Switch"),
+        (19, "CH Enabled", "Switch"),
+        (20, "Cooling Enabled", "Switch"),
+        (21, "DHW Enabled", "Switch"),
+        (22, "Limited by COP", "Switch"),
+        (23, "Silent Mode Status", "Switch"),
+        (24, "Sticky Pump Protection Enabled", "Switch"),
+        (25, "Water Supply Temperature", "Temperature")
+    ]
+    
+    for unit, name, type_name, *options in device_definitions:
+        if unit not in Devices:
+            Domoticz.Device(Name=name, Unit=unit, TypeName=type_name, Options=options[0] if options else {}, Image=options[1] if len(options) > 1 else 0).Create()
+
+def processResponse(self, data):
+    Domoticz.Debug("processResponse called: " + str(data))
+    try:
+        QuattCM = data["qc"]["supervisoryControlMode"]
+        Quatt_Status = {
+            0: 'Standby',
+            1: 'Standby - heating',
+            2: 'Heating - heatpump only',
+            3: 'Heating - heatpump + boiler',
+            4: 'Heating - boiler only',
+            96: 'Anti-Freeze protection - boiler only',
+            97: 'Anti-Freeze protection - boiler pre-pump',
+            98: 'Anti-Freeze protection - water circulation',
+            99: 'Fault - circulation pump on',
+        }.get(QuattCM, 'Unknown')
+        Domoticz.Log("Quatt Status: " + Quatt_Status)
+        COP = round(data["hp1"]["power"] / data["hp1"]["powerInput"], 2)
+            
+        updateDevice(self, 1, Quatt_Status, 1)
+        updateDevice(self, 2, data["thermostat"]["otFtRoomTemperature"], 1)
+        updateDevice(self, 3, data["thermostat"]["otFtRoomSetpoint"], 1)
+        updateDevice(self, 4, data["hp1"]["temperatureWaterIn"], 1)
+        updateDevice(self, 5, data["hp1"]["temperatureWaterOut"], 1)
+        updateDevice(self, 6, data["boiler"]["otFbSupplyOutletTemperature"], 1)
+        updateDevice(self, 7, data["boiler"]["otFbSupplyInletTemperature"], 1)
+        updateDevice(self, 9, data["hp1"]["temperatureOutside"], 1)
+        updateDevice(self, 10, data["thermostat"]["otFtControlSetpoint"], 1)
+        updateDevice(self, 11, round(data["hp1"]["power"], 2), 1)
+        updateDevice(self, 12, round(data["hp1"]["powerInput"], 2), 1)
+        updateDevice(self, 13, COP, 1)
+        updateDevice(self, 14, data["qc"]["flowRateFiltered"], 1)
+        
+        updateDevice(self, 15, '', int(data["boiler"]["oTtbTurnOnOffBoilerOn"]))
+        updateDevice(self, 16, '', int(data["boiler"]["otFbChModeActive"]))
+        updateDevice(self, 17, '', int(data["boiler"]["otFbDhwActive"]))
+        updateDevice(self, 18, '', int(data["boiler"]["otFbFlameOn"]))
+        updateDevice(self, 19, '', int(data["thermostat"]["otFtChEnabled"]))
+        updateDevice(self, 20, '', int(data["thermostat"]["otFtCoolingEnabled"]))
+        updateDevice(self, 21, '', int(data["thermostat"]["otFtDhwEnabled"]))
+        updateDevice(self, 22, '', int(data["hp1"]["limitedByCop"]))
+        updateDevice(self, 23, '', int(data["hp1"]["silentModeStatus"]))
+        updateDevice(self, 24, '', int(data["qc"]["stickyPumpProtectionEnabled"]))
+        updateDevice(self, 25, data["flowMeter"]["waterSupplyTemperature"], 1)
+            
+    except Exception as e:
+        Domoticz.Error("Error fetching Quatt data: {}".format(str(e)))
+
+def updateDevice(self, unit, sValue, nValue):
+    try:
+        Devices[unit].Update(nValue=nValue, sValue=str(sValue), TimedOut=0)
+    except Exception as e:
+        Domoticz.Error("Error updating device {}: {}".format(unit, e))

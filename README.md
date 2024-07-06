@@ -17,6 +17,10 @@ To install:
 * Run: ```git clone https://github.com/galadril/Domoticz-Quatt-Plugin.git```
 * Restart Domoticz.
 
+## Devices
+
+![image](https://github.com/galadril/Domoticz-Quatt-Plugin/assets/14561640/af425b0c-86d8-41f5-8eeb-795a2a2bb0ff)
+
 
 ## Configuration
 
@@ -52,6 +56,7 @@ You can enable debugging by setting the Debug parameter to a value between 1 and
 | 0.0.1 | Initial version |
 | 0.0.2 | Added 4 new devices |
 | 0.0.3 | Added flowRateFiltered new devices |
+| 0.0.4 | Removed flowRate and added 11 new devices |
 
 
 # Donation
