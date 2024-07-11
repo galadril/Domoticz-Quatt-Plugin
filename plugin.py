@@ -76,7 +76,7 @@ class QuattPlugin:
             self.httpConn.Connect()
 
     def onMessage(self, Connection, Data):
-        Domoticz.Log("onMessage called with data: " + str(Data))
+        Domoticz.Debug("onMessage called with data: " + str(Data))
         try:
             Response = json.loads(Data["Data"])
             processResponse(self, Response) 
@@ -160,7 +160,7 @@ def createDevices(self):
             Domoticz.Device(Name=name, Unit=unit, TypeName=type_name, Options=options[0] if options else {}, Image=options[1] if len(options) > 1 else 0).Create()
 
 def processResponse(self, data):
-    Domoticz.Debug("processResponse called: " + str(data))
+    Domoticz.Log("processResponse called: " + str(data))
     try:
         QuattCM = data["qc"]["supervisoryControlMode"]
         Quatt_Status = {
