@@ -28,7 +28,6 @@ import json
 class QuattPlugin:
     httpConn = None
     sendAfterConnect = {'Verb': 'GET', 'URL': '/beta/feed/data.json'}
-    oustandingPings = 0
     
     def __init__(self):
         self.update_interval = 3
@@ -64,33 +63,28 @@ class QuattPlugin:
         Domoticz.Debug("Quatt Plugin stopped")
 
     def onHeartbeat(self):
-        try:
+        if (self.httpConn.Connecting()):
+            Domoticz.Error("onHeartBeat connecting")
+        else:
             if (self.httpConn.Connected()):
-                if (self.oustandingPings > 3):
-                    self.httpConn.Send(self.sendAfterConnect)
-                    self.oustandingPings = 0
-                else:
-                    self.oustandingPings = self.oustandingPings + 1
+                Domoticz.Error("onHeartBeat connected")
+                self.httpConn.Disconnect()
+                self.httpConn=None
+                self.httpConn = Domoticz.Connection(Name="Quatt", Transport="TCP/IP", Protocol="HTTP", Address=Parameters["Address"], Port=Parameters["Port"])
             else:
-                self.oustandingPings = 0
-                self.httpConn.Connect()
-            return True
-        except:
-            Domoticz.Log("Unhandled exception in onHeartbeat, forcing disconnect.")
+                Domoticz.Log("onHeartBeat unconnected")
+            self.httpConn.Connect()
 
     def onMessage(self, Connection, Data):
-        Domoticz.Debug("onMessage called with data: " + str(Data))
+        Domoticz.Log("onMessage called with data: " + str(Data))
         try:
             Response = json.loads(Data["Data"])
             processResponse(self, Response) 
         except Exception as e:
             Domoticz.Error("Error parsing Quatt json: {}".format(str(e)))
 
-    def onCommand(self, Unit, Command, Level, Hue):
-        Domoticz.Debug("onCommand called for Unit " + str(Unit) + ": Parameter '" + str(Command) + "', Level: " + str(Level))
-
     def onDisconnect(self, Connection):
-        Domoticz.Log("onDisconnect called for connection to: " + Connection.Address + ":" + Connection.Port)
+        Domoticz.Debug("onDisconnect called for connection to: " + Connection.Address + ":" + Connection.Port)
         
 global _plugin
 _plugin = QuattPlugin()
@@ -110,14 +104,6 @@ def onConnect(Connection, Status, Description):
 def onMessage(Connection, Data):
     global _plugin
     _plugin.onMessage(Connection, Data)
-
-def onCommand(Unit, Command, Level, Hue):
-    global _plugin
-    _plugin.onCommand(Unit, Command, Level, Hue)
-
-def onNotification(Name, Subject, Text, Status, Priority, Sound, ImageFile):
-    global _plugin
-    _plugin.onNotification(Name, Subject, Text, Status, Priority, Sound, ImageFile)
 
 def onDisconnect(Connection):
     global _plugin
@@ -188,7 +174,7 @@ def processResponse(self, data):
             98: 'Anti-Freeze protection - water circulation',
             99: 'Fault - circulation pump on',
         }.get(QuattCM, 'Unknown')
-        Domoticz.Log("Quatt Status: " + Quatt_Status)
+        Domoticz.Status(Quatt_Status)
         COP = round(data["hp1"]["power"] / data["hp1"]["powerInput"], 2)
             
         updateDevice(self, 1, Quatt_Status, 1)
