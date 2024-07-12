@@ -1,7 +1,9 @@
 """
 <plugin key="Quatt" name="Quatt" author="Mark Heinis/M10tech" version="0.0.5" wikilink="http://www.domoticz.com/wiki/plugins/plugin.html" externallink="https://github.com/galadril/Domoticz-Quatt-Plugin">
     <description>
-        Plugin for retrieving and updating Quatt data.
+        Plugin for retrieving and updating Quatt data
+        Try to connect to your CiC local IP with this URL to see how this works
+        http://<local-cic-ip>:8080/
         More info about Quatt: https://www.quatt.io/
     </description>
     <params>
