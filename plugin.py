@@ -50,9 +50,9 @@ class QuattPlugin:
         Domoticz.Heartbeat(30)
         
     def onConnect(self, Connection, Status, Description):
-        Domoticz.Log("onConnect called: " + str(Status) + " | " + Connection.Address + ":" + Connection.Port)
+        Domoticz.Debug("onConnect called: " + str(Status) + " | " + Connection.Address + ":" + Connection.Port)
         if Status == 0:
-            Domoticz.Log("Connected successfully to: " + Connection.Address + ":" + Connection.Port)
+            Domoticz.Debug("Connected successfully to: " + Connection.Address + ":" + Connection.Port)
             self.httpConn.Send(self.sendAfterConnect)
         else:
             Domoticz.Log("Failed to connect (" + str(Status) + ") to: " + Connection.Address + ":" + Connection.Port)
@@ -138,8 +138,8 @@ def createDevices(self):
         (7, "Supply Inlet Temperature", "Temperature"),
         (9, "Outside Temperature", "Temperature"),
         (10, "Request Room Temperature", "Temperature"),
-        (11, "Power", "Usage"),
-        (12, "Power Input", "Usage"),
+        (11, "Power Heat", "Usage", 10),
+        (12, "Power Electric", "Usage"),
         (13, "COP", "Custom", {"ValueQuantity": "Custom", "ValueUnits": "COP"}),
         (14, "Flow Rate Filtered", "Custom", 11),
         (15, "Boiler On/Off", "Switch"),
@@ -164,44 +164,54 @@ def processResponse(self, data):
     try:
         QuattCM = data["qc"]["supervisoryControlMode"]
         Quatt_Status = {
-            0: 'Standby',
-            1: 'Standby - heating',
-            2: 'Heating - heatpump only',
-            3: 'Heating - heatpump + boiler',
-            4: 'Heating - boiler only',
+             0: 'Standby',
+             1: 'Standby - heating',
+             2: 'Heating - heatpump only',
+             3: 'Heating - heatpump + boiler',
+             4: 'Heating - boiler only',
+            95: 'Sticky Pump Protection',
             96: 'Anti-Freeze protection - boiler only',
             97: 'Anti-Freeze protection - boiler pre-pump',
             98: 'Anti-Freeze protection - water circulation',
             99: 'Fault - circulation pump on',
         }.get(QuattCM, 'Unknown')
         Domoticz.Status(Quatt_Status)
-        COP = round(data["hp1"]["power"] / data["hp1"]["powerInput"], 2)
+        if (data["hp1"]["powerInput"] > 0):
+            COP = data["hp1"]["power"] / data["hp1"]["powerInput"]
             
-        updateDevice(self, 1, Quatt_Status, 1)
-        updateDevice(self, 2, data["thermostat"]["otFtRoomTemperature"], 1)
-        updateDevice(self, 3, data["thermostat"]["otFtRoomSetpoint"], 1)
-        updateDevice(self, 4, data["hp1"]["temperatureWaterIn"], 1)
-        updateDevice(self, 5, data["hp1"]["temperatureWaterOut"], 1)
-        updateDevice(self, 6, data["boiler"]["otFbSupplyOutletTemperature"], 1)
-        updateDevice(self, 7, data["boiler"]["otFbSupplyInletTemperature"], 1)
-        updateDevice(self, 9, data["hp1"]["temperatureOutside"], 1)
-        updateDevice(self, 10, data["thermostat"]["otFtControlSetpoint"], 1)
-        updateDevice(self, 11, round(data["hp1"]["power"], 2), 1)
-        updateDevice(self, 12, round(data["hp1"]["powerInput"], 2), 1)
-        updateDevice(self, 13, COP, 1)
-        updateDevice(self, 14, data["qc"]["flowRateFiltered"], 1)
+        updateDevice(self,     1, Quatt_Status, 1)
+           
+        updateDevice(self,     2, round(data["thermostat"]["otFtRoomTemperature"], 2), 1)
+        updateDevice(self,     3, round(data["thermostat"]["otFtRoomSetpoint"], 1), 1)
+        updateDevice(self,     4, round(data["hp1"]["temperatureWaterIn"], 2), 1)
+        updateDevice(self,     5, round(data["hp1"]["temperatureWaterOut"], 2), 1)
+        if (data["boiler"]["otFbSupplyOutletTemperature"] is not None):
+            updateDevice(self, 6, round(data["boiler"]["otFbSupplyOutletTemperature"], 2), 1)
+        if (data["boiler"]["otFbSupplyInletTemperature"] is not None):
+            updateDevice(self, 7, round(data["boiler"]["otFbSupplyInletTemperature"], 2), 1)
+        updateDevice(self,     9, round(data["hp1"]["temperatureOutside"], 1), 1)
+        updateDevice(self,    10, round(data["thermostat"]["otFtControlSetpoint"], 2), 1)
+        updateDevice(self,    11, round(data["hp1"]["power"], 2), 1)
+        updateDevice(self,    12, round(data["hp1"]["powerInput"], 2), 1)
+        updateDevice(self,    13, round(COP, 2), 1)
+        updateDevice(self,    14, round(data["qc"]["flowRateFiltered"], 1), 1)
         
-        updateDevice(self, 15, '', int(data["boiler"]["oTtbTurnOnOffBoilerOn"]))
-        updateDevice(self, 16, '', int(data["boiler"]["otFbChModeActive"]))
-        updateDevice(self, 17, '', int(data["boiler"]["otFbDhwActive"]))
-        updateDevice(self, 18, '', int(data["boiler"]["otFbFlameOn"]))
-        updateDevice(self, 19, '', int(data["thermostat"]["otFtChEnabled"]))
-        updateDevice(self, 20, '', int(data["thermostat"]["otFtCoolingEnabled"]))
-        updateDevice(self, 21, '', int(data["thermostat"]["otFtDhwEnabled"]))
-        updateDevice(self, 22, '', int(data["hp1"]["limitedByCop"]))
-        updateDevice(self, 23, '', int(data["hp1"]["silentModeStatus"]))
-        updateDevice(self, 24, '', int(data["qc"]["stickyPumpProtectionEnabled"]))
-        updateDevice(self, 25, data["flowMeter"]["waterSupplyTemperature"], 1)
+        if (data["boiler"]["oTtbTurnOnOffBoilerOn"] is not None):
+            updateDevice(self,15, '',  int(data["boiler"]["oTtbTurnOnOffBoilerOn"]))
+        if (data["boiler"]["otFbChModeActive"] is not None):
+            updateDevice(self,16, '', int(data["boiler"]["otFbChModeActive"]))
+        if (data["boiler"]["otFbDhwActive"] is not None):
+            updateDevice(self,17, '', int(data["boiler"]["otFbDhwActive"]))
+        if (data["boiler"]["otFbFlameOn"] is not None):
+            updateDevice(self,18, '', int(data["boiler"]["otFbFlameOn"]))
+        updateDevice(self,    19, '',  int(data["thermostat"]["otFtChEnabled"]))
+        updateDevice(self,    20, '',  int(data["thermostat"]["otFtCoolingEnabled"]))
+        updateDevice(self,    21, '',  int(data["thermostat"]["otFtDhwEnabled"]))
+        updateDevice(self,    22, '',  int(data["hp1"]["limitedByCop"]))
+        updateDevice(self,    23, '',  int(data["hp1"]["silentModeStatus"]))
+        updateDevice(self,    24, '',  int(data["qc"]["stickyPumpProtectionEnabled"]))
+        
+        updateDevice(self,    25, round(data["flowMeter"]["waterSupplyTemperature"], 1), 1)
             
     except Exception as e:
         Domoticz.Error("Error fetching Quatt data: {}".format(str(e)))
