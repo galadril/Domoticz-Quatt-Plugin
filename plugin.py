@@ -63,12 +63,13 @@ class QuattPlugin:
         Domoticz.Debug("Quatt Plugin stopped")
 
     def onHeartbeat(self):
-        if self.httpConn.Connecting():
+        if (self.httpConn.Connecting()):
             Domoticz.Error("onHeartBeat connecting")
         else:
-            if self.httpConn.Connected():
+            if (self.httpConn.Connected()):
                 Domoticz.Error("onHeartBeat connected")
                 self.httpConn.Disconnect()
+                self.httpConn=None
                 self.httpConn = Domoticz.Connection(Name="Quatt", Transport="TCP/IP", Protocol="HTTP", Address=Parameters["Address"], Port=Parameters["Port"])
             else:
                 Domoticz.Log("onHeartBeat unconnected")
@@ -84,7 +85,7 @@ class QuattPlugin:
 
     def onDisconnect(self, Connection):
         Domoticz.Debug("onDisconnect called for connection to: " + Connection.Address + ":" + Connection.Port)
-
+        
 global _plugin
 _plugin = QuattPlugin()
 
@@ -161,7 +162,7 @@ def createDevices(self):
 def processResponse(self, data):
     Domoticz.Log("processResponse called: " + str(data))
     try:
-        Quatt_Status = data["qc"]["supervisoryControlMode"]
+        QuattCM = data["qc"]["supervisoryControlMode"]
         Quatt_Status = {
              0: 'Standby',
              1: 'Standby - heating',
@@ -173,57 +174,47 @@ def processResponse(self, data):
             97: 'Anti-Freeze protection - boiler pre-pump',
             98: 'Anti-Freeze protection - water circulation',
             99: 'Fault - circulation pump on',
-        }.get(Quatt_Status, 'Unknown')
-        Domoticz.Log("Quatt Status: " + Quatt_Status)
+        }.get(QuattCM, 'Unknown')
+        Domoticz.Status(Quatt_Status)
+        if (data["hp1"]["powerInput"] > 0):
+            COP = data["hp1"]["power"] / data["hp1"]["powerInput"]
+            
+        updateDevice(self,     1, Quatt_Status, 1)
+           
+        updateDevice(self,     2, round(data["thermostat"]["otFtRoomTemperature"], 2), 1)
+        updateDevice(self,     3, round(data["thermostat"]["otFtRoomSetpoint"], 1), 1)
+        updateDevice(self,     4, round(data["hp1"]["temperatureWaterIn"], 2), 1)
+        updateDevice(self,     5, round(data["hp1"]["temperatureWaterOut"], 2), 1)
+        if (data["boiler"]["otFbSupplyOutletTemperature"] is not None):
+            updateDevice(self, 6, round(data["boiler"]["otFbSupplyOutletTemperature"], 2), 1)
+        if (data["boiler"]["otFbSupplyInletTemperature"] is not None):
+            updateDevice(self, 7, round(data["boiler"]["otFbSupplyInletTemperature"], 2), 1)
+        updateDevice(self,     9, round(data["hp1"]["temperatureOutside"], 1), 1)
+        updateDevice(self,    10, round(data["thermostat"]["otFtControlSetpoint"], 2), 1)
+        updateDevice(self,    11, round(data["hp1"]["power"], 2), 1)
+        updateDevice(self,    12, round(data["hp1"]["powerInput"], 2), 1)
+        updateDevice(self,    13, round(COP, 2), 1)
+        updateDevice(self,    14, round(data["qc"]["flowRateFiltered"], 1), 1)
         
-        # Initialize COP to zero
-        COP = 0
-        if data.get("hp1") and data["hp1"].get("powerInput") is not None and data["hp1"].get("power") is not None:
-            if data["hp1"]["powerInput"] > 0:
-                COP = data["hp1"]["power"] / data["hp1"]["powerInput"]
+        if (data["boiler"]["oTtbTurnOnOffBoilerOn"] is not None):
+            updateDevice(self,15, '',  int(data["boiler"]["oTtbTurnOnOffBoilerOn"]))
+        if (data["boiler"]["otFbChModeActive"] is not None):
+            updateDevice(self,16, '', int(data["boiler"]["otFbChModeActive"]))
+        if (data["boiler"]["otFbDhwActive"] is not None):
+            updateDevice(self,17, '', int(data["boiler"]["otFbDhwActive"]))
+        if (data["boiler"]["otFbFlameOn"] is not None):
+            updateDevice(self,18, '', int(data["boiler"]["otFbFlameOn"]))
+        updateDevice(self,    19, '',  int(data["thermostat"]["otFtChEnabled"]))
+        updateDevice(self,    20, '',  int(data["thermostat"]["otFtCoolingEnabled"]))
+        updateDevice(self,    21, '',  int(data["thermostat"]["otFtDhwEnabled"]))
+        updateDevice(self,    22, '',  int(data["hp1"]["limitedByCop"]))
+        updateDevice(self,    23, '',  int(data["hp1"]["silentModeStatus"]))
+        updateDevice(self,    24, '',  int(data["qc"]["stickyPumpProtectionEnabled"]))
         
-        updateDevice(self, 1, Quatt_Status, 1)
-        updateDevice(self, 13, round(COP, 2), 1)
- 
-        if data.get("thermostat"):
-            if data["thermostat"].get("otFtRoomTemperature") is not None:
-                updateDevice(self, 2, round(data["thermostat"]["otFtRoomTemperature"], 2), 1)
-            if data["thermostat"].get("otCtSetpoint") is not None:
-                updateDevice(self, 3, round(data["thermostat"]["otCtSetpoint"], 2), 1)
-        
-        if data.get("hp1"):
-            hp1_data = data["hp1"]
-            if hp1_data.get("tInlet") is not None:
-                updateDevice(self, 4, round(hp1_data["tInlet"], 2), 1)
-            if hp1_data.get("tOutlet") is not None:
-                updateDevice(self, 5, round(hp1_data["tOutlet"], 2), 1)
-            if hp1_data.get("tCond") is not None:
-                updateDevice(self, 6, round(hp1_data["tCond"], 2), 1)
-            if hp1_data.get("tEvap") is not None:
-                updateDevice(self, 7, round(hp1_data["tEvap"], 2), 1)
-            if hp1_data.get("tOutside") is not None:
-                updateDevice(self, 9, round(hp1_data["tOutside"], 2), 1)
-            if hp1_data.get("power") is not None:
-                updateDevice(self, 11, round(hp1_data["power"], 2), 1)
-            if hp1_data.get("powerInput") is not None:
-                updateDevice(self, 12, round(hp1_data["powerInput"], 2), 1)
-        
-        if data.get("secondaryCircuits"):
-            if data["secondaryCircuits"].get("roomTemp") is not None:
-                updateDevice(self, 10, round(data["secondaryCircuits"]["roomTemp"], 2), 1)
-        
-        if data.get("controlState"):
-            for field, unit in [("boilerOn", 15), ("chModeActive", 16), ("dhwActive", 17), ("flameOn", 18), ("chEnabled", 19), ("coolingEnabled", 20), ("dhwEnabled", 21), ("limitedByCOP", 22), ("silentModeStatus", 23), ("stickyPumpProtectionEnabled", 24)]:
-                updateDevice(self, unit, "On" if data["controlState"].get(field) else "Off", 1)
-        
-        if data.get("flowRate"):
-            if data["flowRate"].get("filtered") is not None:
-                updateDevice(self, 14, round(data["flowRate"]["filtered"], 2), 1)
-        
-        if data.get("supplyWaterTemp") is not None:
-            updateDevice(self, 25, round(data["supplyWaterTemp"], 2), 1)
+        updateDevice(self,    25, round(data["flowMeter"]["waterSupplyTemperature"], 1), 1)
+            
     except Exception as e:
-        Domoticz.Error("processResponse: " + str(e))
+        Domoticz.Error("Error fetching Quatt data: {}".format(str(e)))
 
 def updateDevice(self, unit, sValue, nValue):
     try:
