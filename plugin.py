@@ -7,7 +7,6 @@
     </description>
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1"/>
-        <param field="Port" label="Port" width="40px" required="true" default="8080"/>
         <param field="Mode6" label="Debug" width="200px">
             <options>
                 <option label="None" value="0"  default="true" />
@@ -45,7 +44,7 @@ class QuattPlugin:
         
         createDevices(self)
             
-        self.httpConn = Domoticz.Connection(Name="Quatt", Transport="TCP/IP", Protocol="HTTP", Address=Parameters["Address"], Port=Parameters["Port"])
+        self.httpConn = Domoticz.Connection(Name="Quatt", Transport="TCP/IP", Protocol="HTTP", Address=Parameters["Address"], Port="8080")
         self.httpConn.Connect()
         
         Domoticz.Heartbeat(30)
@@ -71,7 +70,7 @@ class QuattPlugin:
                 Domoticz.Error("onHeartBeat connected")
                 self.httpConn.Disconnect()
                 self.httpConn=None
-                self.httpConn = Domoticz.Connection(Name="Quatt", Transport="TCP/IP", Protocol="HTTP", Address=Parameters["Address"], Port=Parameters["Port"])
+                self.httpConn = Domoticz.Connection(Name="Quatt", Transport="TCP/IP", Protocol="HTTP", Address=Parameters["Address"], Port="8080")
             else:
                 Domoticz.Log("onHeartBeat unconnected")
             self.httpConn.Connect()
