@@ -2,12 +2,13 @@
 <plugin key="Quatt" name="Quatt" author="Mark Heinis" version="0.0.6" wikilink="http://www.domoticz.com/wiki/plugins/plugin.html" externallink="https://github.com/galadril/Domoticz-Quatt-Plugin">
     <description>
         Plugin for retrieving and updating Quatt data.
+        Connect to your CiC at http://local-cic-IP:8080/ to see how this works.
         More info about Quatt: https://www.quatt.io/
     </description>
     <params>
         <param field="Address" label="IP Address" width="200px" required="true" default="127.0.0.1"/>
-        <param field="Port" label="Port" width="30px" required="true" default="8080"/>
-        <param field="Mode6" label="Debug" width="150px">
+        <param field="Port" label="Port" width="40px" required="true" default="8080"/>
+        <param field="Mode6" label="Debug" width="200px">
             <options>
                 <option label="None" value="0"  default="true" />
                 <option label="Python Only" value="2"/>
