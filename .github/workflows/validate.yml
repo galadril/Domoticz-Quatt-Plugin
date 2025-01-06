@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - main
+      - master
+  workflow_dispatch:  # Allows for manual triggering of the workflow
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Check out the repository
+      uses: actions/checkout@v3
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install dependencies
+      run: |
+        python -m venv venv
+        source venv/bin/activate
+
+    - name: Validate Plugin Structure
+      run: |
+        source venv/bin/activate
+        python .github/scripts/validate_plugin.py
+
+    - name: Check Python syntax
+      run: |
+        source venv/bin/activate
+        python -m compileall .
+      continue-on-error: false
