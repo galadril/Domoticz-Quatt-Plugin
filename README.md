@@ -58,6 +58,7 @@ You can enable debugging by setting the Debug parameter to a value between 1 and
 | 0.0.3 | Added flowRateFiltered new devices |
 | 0.0.4 | Removed flowRate and added 11 new devices |
 | 0.0.6 | Stability changes |
+| 0.0.8 | Added support for hp1/hp2 |
 
 
 # Donation
