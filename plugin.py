@@ -189,8 +189,8 @@ def createDynamicDevices(self, data):
             if unit not in Devices:
                 Domoticz.Device(Name=name, Unit=unit, TypeName=type_name, Options=options[0] if options else {}, Image=options[1] if len(options) > 1 else 0).Create()
     
-    # Boiler devices (units 6, 7, 15, 16, 17, 18)
-    if "boiler" in data and data["boiler"] is not None:
+    # Boiler devices (units 6, 7, 15, 16, 17, 18, 34)
+    if data.get("boiler"):
         boiler_devices = [
             (6, "Boiler Supply Outlet Temperature", "Temperature"),
             (7, "Boiler Supply Inlet Temperature", "Temperature"),
@@ -198,6 +198,7 @@ def createDynamicDevices(self, data):
             (16, "Boiler CH Mode Active", "Switch"),
             (17, "Boiler DHW Active", "Switch"),
             (18, "Boiler Flame On", "Switch"),
+            (34, "Boiler Water Pressure", "Pressure"),
         ]
         for unit, name, type_name, *options in boiler_devices:
             if unit not in Devices:
@@ -295,8 +296,7 @@ def processResponse(self, data):
                 updateDevice(self, 33, '', int(hp2["silentModeStatus"]))
         
         # Process boiler data
-        if "boiler" in data and data["boiler"] is not None:
-            boiler = data["boiler"]
+        if (boiler := data.get("boiler")) is not None:
             if "otFbSupplyOutletTemperature" in boiler and boiler["otFbSupplyOutletTemperature"] is not None:
                 updateDevice(self, 6, round(boiler["otFbSupplyOutletTemperature"], 2), 1)
             if "otFbSupplyInletTemperature" in boiler and boiler["otFbSupplyInletTemperature"] is not None:
@@ -309,6 +309,8 @@ def processResponse(self, data):
                 updateDevice(self, 17, '', int(boiler["otFbDhwActive"]))
             if "otFbFlameOn" in boiler and boiler["otFbFlameOn"] is not None:
                 updateDevice(self, 18, '', int(boiler["otFbFlameOn"]))
+            if (value := boiler.get("otFbWaterPressure")) is not None:
+                updateDevice(self, 34, round(value, 2), 1)
         
         # Process QC data
         if "qc" in data:
