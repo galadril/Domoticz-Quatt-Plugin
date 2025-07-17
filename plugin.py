@@ -198,6 +198,7 @@ def createDynamicDevices(self, data):
             (16, "Boiler CH Mode Active", "Switch"),
             (17, "Boiler DHW Active", "Switch"),
             (18, "Boiler Flame On", "Switch"),
+            (34, "Boiler Water Pressure", "Pressure"),
         ]
         for unit, name, type_name, *options in boiler_devices:
             if unit not in Devices:
@@ -309,6 +310,8 @@ def processResponse(self, data):
                 updateDevice(self, 17, '', int(boiler["otFbDhwActive"]))
             if "otFbFlameOn" in boiler and boiler["otFbFlameOn"] is not None:
                 updateDevice(self, 18, '', int(boiler["otFbFlameOn"]))
+            if "otFbWaterPressure" in boiler and boiler["otFbWaterPressure"] is not None:
+                updateDevice(self, 34, '', int(boiler["otFbWaterPressure"]))
         
         # Process QC data
         if "qc" in data:
