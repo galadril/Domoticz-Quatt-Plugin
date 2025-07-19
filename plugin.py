@@ -311,7 +311,7 @@ def processResponse(self, data):
             if "otFbFlameOn" in boiler and boiler["otFbFlameOn"] is not None:
                 updateDevice(self, 18, '', int(boiler["otFbFlameOn"]))
             if "otFbWaterPressure" in boiler and boiler["otFbWaterPressure"] is not None:
-                updateDevice(self, 34, '', int(boiler["otFbWaterPressure"]))
+                updateDevice(self, 34, round(boiler["otFbWaterPressure"], 2), 1)
         
         # Process QC data
         if "qc" in data:
