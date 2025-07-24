@@ -1,5 +1,5 @@
 """
-<plugin key="Quatt" name="Quatt" author="Mark Heinis" version="0.0.9" wikilink="http://www.domoticz.com/wiki/plugins/plugin.html" externallink="https://github.com/galadril/Domoticz-Quatt-Plugin">
+<plugin key="Quatt" name="Quatt" author="Mark Heinis" version="0.0.10" wikilink="http://www.domoticz.com/wiki/plugins/plugin.html" externallink="https://github.com/galadril/Domoticz-Quatt-Plugin">
     <description>
         Plugin for retrieving and updating Quatt data.
         Connect to your CiC at http://local-cic-IP:8080/ to see how this works.
@@ -25,27 +25,22 @@
 
 import Domoticz
 import json
+import time
 
 class QuattPlugin:
     httpConn = None
     sendAfterConnect = {'Verb': 'GET', 'URL': '/beta/feed/data.json'}
-    
+
     def __init__(self):
-        self.update_interval = 3
-        self.debug_level = None
         self.discovered_data = None
 
     def onStart(self):
-        if Parameters["Mode6"] == "":
-            Parameters["Mode6"] = "-1"
-        if Parameters["Mode6"] != "0": 
-            Domoticz.Debugging(int(Parameters["Mode6"]))
-            DumpConfigToLog()
-            
-        self.debug_level = Parameters["Mode6"]
-        
+        if mode6 := Parameters.get("Mode6", "-1"):
+            Domoticz.Debugging(int(mode6))
+            _dump_config_to_log()
+
         # Create basic devices first, dynamic devices will be created when we receive data
-        createBasicDevices(self)
+        _create_basic_devices(self)
             
         self.httpConn = Domoticz.Connection(Name="Quatt", Transport="TCP/IP", Protocol="HTTP", Address=Parameters["Address"], Port=Parameters["Port"])
         self.httpConn.Connect()
@@ -53,23 +48,23 @@ class QuattPlugin:
         Domoticz.Heartbeat(30)
         
     def onConnect(self, Connection, Status, Description):
-        Domoticz.Debug("onConnect called: " + str(Status) + " | " + Connection.Address + ":" + Connection.Port)
+        Domoticz.Debug(f"onConnect called: {Status} | {Connection.Address}:{Connection.Port}")
         if Status == 0:
-            Domoticz.Debug("Connected successfully to: " + Connection.Address + ":" + Connection.Port)
+            Domoticz.Debug(f"Connected successfully to: {Connection.Address}:{Connection.Port}")
             self.httpConn.Send(self.sendAfterConnect)
         else:
-            Domoticz.Log("Failed to connect (" + str(Status) + ") to: " + Connection.Address + ":" + Connection.Port)
-            Domoticz.Debug("Failed to connect (" + str(Status) + ") to: " + Connection.Address + ":" + Connection.Port + " with error: " + Description)
+            Domoticz.Log(f"Failed to connect ({Status}) to: {Connection.Address}:{Connection.Port}")
+            Domoticz.Debug(f"Failed to connect ({Status}) to: {Connection.Address}:{Connection.Port} with error: {Description}")
         return True
 
     def onStop(self):
         Domoticz.Debug("Quatt Plugin stopped")
 
     def onHeartbeat(self):
-        if (self.httpConn.Connecting()):
+        if self.httpConn.Connecting():
             Domoticz.Error("onHeartBeat connecting")
         else:
-            if (self.httpConn.Connected()):
+            if self.httpConn.Connected():
                 Domoticz.Error("onHeartBeat connected")
                 self.httpConn.Disconnect()
                 self.httpConn=None
@@ -79,23 +74,23 @@ class QuattPlugin:
             self.httpConn.Connect()
 
     def onMessage(self, Connection, Data):
-        Domoticz.Debug("onMessage called with data: " + str(Data))
+        Domoticz.Debug(f"onMessage called with data: {Data}")
         try:
-            Response = json.loads(Data["Data"])
+            response = json.loads(Data["Data"])
             
             # Create dynamic devices based on available data sections
             if self.discovered_data is None:
-                self.discovered_data = Response
-                createDynamicDevices(self, Response)
+                self.discovered_data = response
+                _create_dynamic_devices(self, response)
             
-            processResponse(self, Response) 
+            _process_response(self, response)
         except Exception as e:
-            Domoticz.Error("Error parsing Quatt json: {}".format(str(e)))
+            Domoticz.Error(f"Error parsing Quatt json: {e}")
 
     def onDisconnect(self, Connection):
-        Domoticz.Debug("onDisconnect called for connection to: " + Connection.Address + ":" + Connection.Port)
+        Domoticz.Debug(f"onDisconnect called for connection to: {Connection.Address}:{Connection.Port}")
 
-global _plugin
+
 _plugin = QuattPlugin()
 
 def onStart():
@@ -122,21 +117,21 @@ def onHeartbeat():
     global _plugin
     _plugin.onHeartbeat()
 
-def DumpConfigToLog():
+def _dump_config_to_log():
     for x in Parameters:
         if Parameters[x] != "":
-            Domoticz.Debug("'" + x + "':'" + str(Parameters[x]) + "'")
-    Domoticz.Debug("Device count: " + str(len(Devices)))
+            Domoticz.Debug(f"'{x}':'{Parameters[x]}'")
+    Domoticz.Debug(f"Device count: {len(Devices)}")
     for x in Devices:
-        Domoticz.Debug("Device:           " + str(x) + " - " + str(Devices[x]))
-        Domoticz.Debug("Device ID:       '" + str(Devices[x].ID) + "'")
-        Domoticz.Debug("Device Name:     '" + Devices[x].Name + "'")
-        Domoticz.Debug("Device nValue:    " + str(Devices[x].nValue))
-        Domoticz.Debug("Device sValue:   '" + Devices[x].sValue + "'")
-        Domoticz.Debug("Device LastLevel: " + str(Devices[x].LastLevel))
+        Domoticz.Debug(f"Device:           {x} - {Devices[x]}")
+        Domoticz.Debug(f"Device ID:       '{Devices[x].ID}'")
+        Domoticz.Debug(f"Device Name:     '{Devices[x].Name}'")
+        Domoticz.Debug(f"Device nValue:    {Devices[x].nValue}")
+        Domoticz.Debug(f"Device sValue:   '{Devices[x].sValue}'")
+        Domoticz.Debug(f"Device LastLevel: {Devices[x].LastLevel}")
     return
 
-def createBasicDevices(self):
+def _create_basic_devices(self):
     """Create basic devices that are always available"""
     basic_device_definitions = [
         (1, "Status", "Text", 7),
@@ -148,17 +143,18 @@ def createBasicDevices(self):
         (20, "Cooling Enabled", "Switch"),
         (21, "DHW Enabled", "Switch"),
         (24, "Sticky Pump Protection Enabled", "Switch"),
+        (35, "Time Delay", "Custom", {"ValueQuantity": "Delay", "ValueUnits": "millis"}),
     ]
     
     for unit, name, type_name, *options in basic_device_definitions:
         if unit not in Devices:
             Domoticz.Device(Name=name, Unit=unit, TypeName=type_name, Options=options[0] if options else {}, Image=options[1] if len(options) > 1 else 0).Create()
 
-def createDynamicDevices(self, data):
+def _create_dynamic_devices(self, data):
     """Create devices dynamically based on available JSON sections"""
     
     # HP1 devices (units 4, 5, 9, 11, 12, 13, 22, 23)
-    if "hp1" in data and data["hp1"] is not None:
+    if data.get("hp1"):
         hp1_devices = [
             (4, "HP1 Water Inlet Temperature", "Temperature"),
             (5, "HP1 Water Outlet Temperature", "Temperature"),
@@ -174,7 +170,7 @@ def createDynamicDevices(self, data):
                 Domoticz.Device(Name=name, Unit=unit, TypeName=type_name, Options=options[0] if options else {}, Image=options[1] if len(options) > 1 else 0).Create()
     
     # HP2 devices (units 26-31)
-    if "hp2" in data and data["hp2"] is not None:
+    if data.get("hp2"):
         hp2_devices = [
             (26, "HP2 Water Inlet Temperature", "Temperature"),
             (27, "HP2 Water Outlet Temperature", "Temperature"),
@@ -189,8 +185,8 @@ def createDynamicDevices(self, data):
             if unit not in Devices:
                 Domoticz.Device(Name=name, Unit=unit, TypeName=type_name, Options=options[0] if options else {}, Image=options[1] if len(options) > 1 else 0).Create()
     
-    # Boiler devices (units 6, 7, 15, 16, 17, 18)
-    if "boiler" in data and data["boiler"] is not None:
+    # Boiler devices (units 6, 7, 15, 16, 17, 18, 34)
+    if data.get("boiler"):
         boiler_devices = [
             (6, "Boiler Supply Outlet Temperature", "Temperature"),
             (7, "Boiler Supply Inlet Temperature", "Temperature"),
@@ -205,7 +201,7 @@ def createDynamicDevices(self, data):
                 Domoticz.Device(Name=name, Unit=unit, TypeName=type_name, Options=options[0] if options else {}, Image=options[1] if len(options) > 1 else 0).Create()
     
     # Flow meter devices (unit 25)
-    if "flowMeter" in data and data["flowMeter"] is not None:
+    if data.get("flowMeter"):
         flowMeter_devices = [
             (25, "Water Supply Temperature", "Temperature")
         ]
@@ -213,12 +209,11 @@ def createDynamicDevices(self, data):
             if unit not in Devices:
                 Domoticz.Device(Name=name, Unit=unit, TypeName=type_name, Options=options[0] if options else {}, Image=options[1] if len(options) > 1 else 0).Create()
 
-def processResponse(self, data):
+def _process_response(self, data):
     Domoticz.Log("processResponse called: " + str(data))
     try:
         # Process basic status and thermostat data
-        if "qc" in data and "supervisoryControlMode" in data["qc"]:
-            QuattCM = data["qc"]["supervisoryControlMode"]
+        if (qc := data.get("qc")) is not None and (QuattCM := qc.get("supervisoryControlMode")) is not None:
             Quatt_Status = {
                  0: 'Standby',
                  1: 'Standby - heating',
@@ -231,110 +226,110 @@ def processResponse(self, data):
                 98: 'Anti-Freeze protection - water circulation',
                 99: 'Fault - circulation pump on',
             }.get(QuattCM, 'Unknown')
-            updateDevice(self, 1, Quatt_Status, 1)
+            _update_device(self, 1, Quatt_Status, 1)
         
         # Process thermostat data
-        if "thermostat" in data:
-            thermo = data["thermostat"]
-            if "otFtRoomTemperature" in thermo:
-                updateDevice(self, 2, round(thermo["otFtRoomTemperature"], 2), 1)
-            if "otFtRoomSetpoint" in thermo:
-                updateDevice(self, 3, round(thermo["otFtRoomSetpoint"], 1), 1)
-            if "otFtControlSetpoint" in thermo:
-                updateDevice(self, 10, round(thermo["otFtControlSetpoint"], 2), 1)
-            if "otFtChEnabled" in thermo:
-                updateDevice(self, 19, '', int(thermo["otFtChEnabled"]))
-            if "otFtCoolingEnabled" in thermo:
-                updateDevice(self, 20, '', int(thermo["otFtCoolingEnabled"]))
-            if "otFtDhwEnabled" in thermo:
-                updateDevice(self, 21, '', int(thermo["otFtDhwEnabled"]))
+        if (thermo := data.get("thermostat")) is not None:
+            if (value := thermo.get("otFtRoomTemperature")) is not None:
+                _update_device(self, 2, round(value, 2), 1)
+            if (value := thermo.get("otFtRoomSetpoint")) is not None:
+                _update_device(self, 3, round(value, 1), 1)
+            if (value := thermo.get("otFtControlSetpoint")) is not None:
+                _update_device(self, 10, round(value, 2), 1)
+            if (value := thermo.get("otFtChEnabled")) is not None:
+                _update_device(self, 19, '', int(value))
+            if (value := thermo.get("otFtCoolingEnabled")) is not None:
+                _update_device(self, 20, '', int(value))
+            if (value := thermo.get("otFtDhwEnabled")) is not None:
+                _update_device(self, 21, '', int(value))
         
         # Process HP1 data
-        if "hp1" in data and data["hp1"] is not None:
-            hp1 = data["hp1"]
-            COP1 = 0
-            if "powerInput" in hp1 and hp1["powerInput"] > 0 and "power" in hp1:
-                COP1 = hp1["power"] / hp1["powerInput"]
-                updateDevice(self, 13, round(COP1, 2), 1)
-            
-            if "temperatureWaterIn" in hp1:
-                updateDevice(self, 4, round(hp1["temperatureWaterIn"], 2), 1)
-            if "temperatureWaterOut" in hp1:
-                updateDevice(self, 5, round(hp1["temperatureWaterOut"], 2), 1)
-            if "temperatureOutside" in hp1:
-                updateDevice(self, 9, round(hp1["temperatureOutside"], 1), 1)
-            if "power" in hp1:
-                updateDevice(self, 11, round(hp1["power"], 2), 1)
-            if "powerInput" in hp1:
-                updateDevice(self, 12, round(hp1["powerInput"], 2), 1)
-            if "limitedByCop" in hp1:
-                updateDevice(self, 22, '', int(hp1["limitedByCop"]))
-            if "silentModeStatus" in hp1:
-                updateDevice(self, 23, '', int(hp1["silentModeStatus"]))
+        if (hp1 := data.get("hp1")) is not None:
+            if (powerInput := hp1.get("powerInput", 0)) > 0 and (power := hp1.get("power")) is not None:
+                COP1 = power / powerInput
+                _update_device(self, 13, round(COP1, 2), 1)
+
+            if (value := hp1.get("temperatureWaterIn")) is not None:
+                _update_device(self, 4, round(value, 2), 1)
+            if (value := hp1.get("temperatureWaterOut")) is not None:
+                _update_device(self, 5, round(value, 2), 1)
+            if (value := hp1.get("temperatureOutside")) is not None:
+                _update_device(self, 9, round(value, 1), 1)
+            if (value := hp1.get("power")) is not None:
+                _update_device(self, 11, round(value, 2), 1)
+            if (value := hp1.get("powerInput")) is not None:
+                _update_device(self, 12, round(value, 2), 1)
+            if (value := hp1.get("limitedByCop")) is not None:
+                _update_device(self, 22, '', int(value))
+            if (value := hp1.get("silentModeStatus")) is not None:
+                _update_device(self, 23, '', int(value))
         
         # Process HP2 data
-        if "hp2" in data and data["hp2"] is not None:
-            hp2 = data["hp2"]
-            COP2 = 0
-            if "powerInput" in hp2 and hp2["powerInput"] > 0 and "power" in hp2:
-                COP2 = hp2["power"] / hp2["powerInput"]
-                updateDevice(self, 31, round(COP2, 2), 1)
+        if (hp2 := data.get("hp2")) is not None:
+            if (powerInput := hp2.get("powerInput", 0)) > 0 and (power := hp2.get("power")) is not None:
+                COP2 = power / powerInput
+                _update_device(self, 31, round(COP2, 2), 1)
             
-            if "temperatureWaterIn" in hp2:
-                updateDevice(self, 26, round(hp2["temperatureWaterIn"], 2), 1)
-            if "temperatureWaterOut" in hp2:
-                updateDevice(self, 27, round(hp2["temperatureWaterOut"], 2), 1)
-            if "temperatureOutside" in hp2:
-                updateDevice(self, 28, round(hp2["temperatureOutside"], 1), 1)
-            if "power" in hp2:
-                updateDevice(self, 29, round(hp2["power"], 2), 1)
-            if "powerInput" in hp2:
-                updateDevice(self, 30, round(hp2["powerInput"], 2), 1)
-            if "limitedByCop" in hp2:
-                updateDevice(self, 32, '', int(hp2["limitedByCop"]))
-            if "silentModeStatus" in hp2:
-                updateDevice(self, 33, '', int(hp2["silentModeStatus"]))
+            if (value := hp2.get("temperatureWaterIn")) is not None:
+                _update_device(self, 26, round(value, 2), 1)
+            if (value := hp2.get("temperatureWaterOut")) is not None:
+                _update_device(self, 27, round(value, 2), 1)
+            if (value := hp2.get("temperatureOutside")) is not None:
+                _update_device(self, 28, round(value, 1), 1)
+            if (value := hp2.get("power")) is not None:
+                _update_device(self, 29, round(value, 2), 1)
+            if (value := hp2.get("powerInput")) is not None:
+                _update_device(self, 30, round(value, 2), 1)
+            if (value := hp2.get("limitedByCop")) is not None:
+                _update_device(self, 32, '', int(value))
+            if (value := hp2.get("silentModeStatus")) is not None:
+                _update_device(self, 33, '', int(value))
         
         # Process boiler data
-        if "boiler" in data and data["boiler"] is not None:
-            boiler = data["boiler"]
-            if "otFbSupplyOutletTemperature" in boiler and boiler["otFbSupplyOutletTemperature"] is not None:
-                updateDevice(self, 6, round(boiler["otFbSupplyOutletTemperature"], 2), 1)
-            if "otFbSupplyInletTemperature" in boiler and boiler["otFbSupplyInletTemperature"] is not None:
-                updateDevice(self, 7, round(boiler["otFbSupplyInletTemperature"], 2), 1)
-            if "oTtbTurnOnOffBoilerOn" in boiler and boiler["oTtbTurnOnOffBoilerOn"] is not None:
-                updateDevice(self, 15, '', int(boiler["oTtbTurnOnOffBoilerOn"]))
-            if "otFbChModeActive" in boiler and boiler["otFbChModeActive"] is not None:
-                updateDevice(self, 16, '', int(boiler["otFbChModeActive"]))
-            if "otFbDhwActive" in boiler and boiler["otFbDhwActive"] is not None:
-                updateDevice(self, 17, '', int(boiler["otFbDhwActive"]))
-            if "otFbFlameOn" in boiler and boiler["otFbFlameOn"] is not None:
-                updateDevice(self, 18, '', int(boiler["otFbFlameOn"]))
-            if "otFbWaterPressure" in boiler and boiler["otFbWaterPressure"] is not None:
-                updateDevice(self, 34, round(boiler["otFbWaterPressure"], 2), 1)
+        if (boiler := data.get("boiler")) is not None:
+            if (value := boiler.get("otFbSupplyOutletTemperature"))  is not None:
+                _update_device(self, 6, round(value, 2), 1)
+            if (value := boiler.get("otFbSupplyInletTemperature"))  is not None:
+                _update_device(self, 7, round(value, 2), 1)
+            if (value := boiler.get("oTtbTurnOnOffBoilerOn")) is not None:
+                _update_device(self, 15, '', int(value))
+            if (value := boiler.get("otFbChModeActive")) is not None:
+                _update_device(self, 16, '', int(value))
+            if (value := boiler.get("otFbDhwActive")) is not None:
+                _update_device(self, 17, '', int(value))
+            if (value := boiler.get("otFbFlameOn")) is not None:
+                _update_device(self, 18, '', int(value))
+            if (value := boiler.get("otFbWaterPressure")) is not None:
+                _update_device(self, 34, round(value, 2), 1)
         
         # Process QC data
-        if "qc" in data:
-            qc = data["qc"]
-            if "flowRateFiltered" in qc:
-                updateDevice(self, 14, round(qc["flowRateFiltered"], 1), 1)
-            if "stickyPumpProtectionEnabled" in qc:
-                updateDevice(self, 24, '', int(qc["stickyPumpProtectionEnabled"]))
+        if (qc := data.get("qc")) is not None:
+            if (value := qc.get("flowRateFiltered")) is not None:
+                _update_device(self, 14, round(value, 1), 1)
+            if (value := qc.get("stickyPumpProtectionEnabled")) is not None:
+                _update_device(self, 24, '', int(value))
         
         # Process flow meter data
-        if "flowMeter" in data and data["flowMeter"] is not None:
-            flowMeter = data["flowMeter"]
-            if "waterSupplyTemperature" in flowMeter:
-                updateDevice(self, 25, round(flowMeter["waterSupplyTemperature"], 1), 1)
-            
-    except Exception as e:
-        Domoticz.Error("Error fetching Quatt data: {}".format(str(e)))
+        if (flowMeter := data.get("flowMeter")) is not None:
+            if (value := flowMeter.get("waterSupplyTemperature")) is not None:
+                _update_device(self, 25, round(value, 1), 1)
 
-def updateDevice(self, unit, sValue, nValue):
+        # Time Delay
+        if (cic_time := data.get("time")) is not None:
+            if (cic_ts := cic_time.get("ts")) is not None:
+                cic_ts_millis = cic_ts
+                system_ts_millis = time.time_ns() // 1_000_000
+                delay = system_ts_millis - cic_ts_millis
+                _update_device(self, 35, delay, 0)
+
+    except Exception as e:
+        Domoticz.Error(f"Error fetching Quatt data: {e}")
+
+def _update_device(self, unit, sValue, nValue):
     try:
         if unit in Devices:
             Devices[unit].Update(nValue=nValue, sValue=str(sValue), TimedOut=0)
         else:
-            Domoticz.Debug("Device {} not found, skipping update".format(unit))
+            Domoticz.Debug(f"Device {unit} not found, skipping update")
     except Exception as e:
-        Domoticz.Error("Error updating device {}: {}".format(unit, e))
+        Domoticz.Error(f"Error updating device {unit}: {e}")
