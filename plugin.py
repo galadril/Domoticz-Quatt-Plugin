@@ -234,19 +234,19 @@ def processResponse(self, data):
             updateDevice(self, 1, Quatt_Status, 1)
         
         # Process thermostat data
-        if "thermostat" in data:
+        if "thermostat" in data and data["thermostat"] is not None:
             thermo = data["thermostat"]
-            if "otFtRoomTemperature" in thermo:
+            if "otFtRoomTemperature" in thermo and thermo["otFtRoomTemperature"] is not None:
                 updateDevice(self, 2, round(thermo["otFtRoomTemperature"], 2), 1)
-            if "otFtRoomSetpoint" in thermo:
+            if "otFtRoomSetpoint" in thermo and thermo["otFtRoomSetpoint"] is not None:
                 updateDevice(self, 3, round(thermo["otFtRoomSetpoint"], 1), 1)
-            if "otFtControlSetpoint" in thermo:
+            if "otFtControlSetpoint" in thermo and thermo["otFtControlSetpoint"] is not None:
                 updateDevice(self, 10, round(thermo["otFtControlSetpoint"], 2), 1)
-            if "otFtChEnabled" in thermo:
+            if "otFtChEnabled" in thermo and thermo["otFtChEnabled"] is not None:
                 updateDevice(self, 19, '', int(thermo["otFtChEnabled"]))
-            if "otFtCoolingEnabled" in thermo:
+            if "otFtCoolingEnabled" in thermo and thermo["otFtCoolingEnabled"] is not None:
                 updateDevice(self, 20, '', int(thermo["otFtCoolingEnabled"]))
-            if "otFtDhwEnabled" in thermo:
+            if "otFtDhwEnabled" in thermo and thermo["otFtDhwEnabled"] is not None:
                 updateDevice(self, 21, '', int(thermo["otFtDhwEnabled"]))
         
         # Process HP1 data
@@ -314,11 +314,11 @@ def processResponse(self, data):
                 updateDevice(self, 34, round(boiler["otFbWaterPressure"], 2), 1)
         
         # Process QC data
-        if "qc" in data:
+        if "qc" in data and data["qc"] is not None:
             qc = data["qc"]
-            if "flowRateFiltered" in qc:
+            if "flowRateFiltered" in qc and qc["flowRateFiltered"] is not None:
                 updateDevice(self, 14, round(qc["flowRateFiltered"], 1), 1)
-            if "stickyPumpProtectionEnabled" in qc:
+            if "stickyPumpProtectionEnabled" in qc and qc["stickyPumpProtectionEnabled"] is not None:
                 updateDevice(self, 24, '', int(qc["stickyPumpProtectionEnabled"]))
         
         # Process flow meter data
