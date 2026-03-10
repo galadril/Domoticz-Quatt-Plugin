@@ -60,6 +60,7 @@ You can enable debugging by setting the Debug parameter to a value between 1 and
 | 0.0.6 | Stability changes |
 | 0.0.8 | Added support for hp1/hp2 |
 | 0.0.9 | Added otFbWaterPressure device |
+| 0.0.10 | Fix TypeError when Quatt API returns None for boolean/numeric fields |
 
 
 # Donation
