@@ -26,6 +26,8 @@
 import Domoticz
 import json
 import time
+import os
+from datetime import datetime
 
 class QuattPlugin:
     httpConn = None
@@ -33,6 +35,46 @@ class QuattPlugin:
 
     def __init__(self):
         self.discovered_data = None
+        self.energy_file = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "quatt_energy_state.json"
+        )
+        self.energy_state = self._load_energy_state()
+
+    def _load_energy_state(self):
+        """Laad de cumulatieve energietellers uit een JSON-bestand."""
+        try:
+            with open(self.energy_file, "r", encoding="utf-8") as f:
+                state = json.load(f)
+
+            if not isinstance(state, dict):
+                raise ValueError("Ongeldige energie-opslag")
+
+            return state
+
+        except FileNotFoundError:
+            return {}
+
+        except Exception as e:
+            Domoticz.Error(
+                f"Kan energiestatus niet laden: {e}"
+            )
+            return {}
+
+    def _save_energy_state(self):
+        """Bewaar de energietellers op schijf."""
+        try:
+            temp_file = self.energy_file + ".tmp"
+
+            with open(temp_file, "w", encoding="utf-8") as f:
+                json.dump(self.energy_state, f, indent=2)
+
+            os.replace(temp_file, self.energy_file)
+
+        except Exception as e:
+            Domoticz.Error(
+                f"Kan energiestatus niet opslaan: {e}"
+            )
 
     def onStart(self):
         if mode6 := Parameters.get("Mode6", "-1"):
@@ -209,6 +251,112 @@ def _create_dynamic_devices(self, data):
             if unit not in Devices:
                 Domoticz.Device(Name=name, Unit=unit, TypeName=type_name, Options=options[0] if options else {}, Image=options[1] if len(options) > 1 else 0).Create()
 
+    # Cumulatieve energie devices voor HP1
+    if data.get("hp1"):
+        energy_devices_hp1 = [
+            (36, "HP1 Power Electric Energy", 0),
+            (37, "HP1 Power Heat Energy", 4),
+        ]
+
+        for unit, name, switchtype in energy_devices_hp1:
+            if unit not in Devices:
+                Domoticz.Device(
+                    Name=name,
+                    Unit=unit,
+                    Type=243,
+                    Subtype=29,
+                    Switchtype=switchtype
+                ).Create()
+
+    # Cumulatieve energie devices voor HP2
+    if data.get("hp2"):
+        energy_devices_hp2 = [
+            (38, "HP2 Power Electric Energy", 0),
+            (39, "HP2 Power Heat Energy", 4),
+        ]
+
+        for unit, name, switchtype in energy_devices_hp2:
+            if unit not in Devices:
+                Domoticz.Device(
+                    Name=name,
+                    Unit=unit,
+                    Type=243,
+                    Subtype=29,
+                    Switchtype=switchtype
+                ).Create()
+
+def _update_energy(self, unit, power, now=None):
+    """
+    Integreer vermogen (W) naar cumulatieve energie (Wh).
+
+    De teller wordt per kalenderjaar bijgehouden.
+    De berekende energie blijft behouden na een herstart.
+    """
+    if unit not in Devices:
+        return
+
+    if now is None:
+        now = time.time()
+
+    today = datetime.fromtimestamp(now).date().isoformat()
+    year = today[:4]
+
+    key = str(unit)
+
+    entry = self.energy_state.get(key, {
+        "year": year,
+        "energy_wh": 0.0,
+        "last_ts": now,
+        "last_power": power,
+        "last_date": today,
+    })
+
+    # Reset bij een nieuw kalenderjaar.
+    if entry.get("year") != year:
+        entry = {
+            "year": year,
+            "energy_wh": 0.0,
+            "last_ts": now,
+            "last_power": power,
+            "last_date": today,
+        }
+    else:
+        last_ts = float(entry.get("last_ts", now))
+        last_power = max(
+            0.0, float(entry.get("last_power", power))
+        )
+
+        # Integreer het laatst bekende vermogen over de verstreken tijd.
+        elapsed = max(0.0, now - last_ts)
+
+        # Beperk de integratie bij een lange communicatieonderbreking.
+        elapsed = min(elapsed, 120.0)
+
+        energy_wh = max(
+            0.0, float(entry.get("energy_wh", 0.0))
+        )
+
+        energy_wh += last_power * elapsed / 3600.0
+
+        entry["energy_wh"] = energy_wh
+        entry["last_ts"] = now
+        entry["last_power"] = max(0.0, float(power))
+        entry["last_date"] = today
+
+    entry["year"] = year
+    self.energy_state[key] = entry
+
+    # Domoticz verwacht bij een kWh-device:
+    # actueel vermogen in W ; cumulatieve energie in Wh.
+    energy_wh = int(entry["energy_wh"])
+
+    Devices[unit].Update(
+        nValue=0,
+        sValue=f"{max(0.0, float(power)):.2f};{energy_wh}"
+    )
+
+    self._save_energy_state()
+
 def _process_response(self, data):
     Domoticz.Log("processResponse called: " + str(data))
     try:
@@ -255,10 +403,18 @@ def _process_response(self, data):
                 _update_device(self, 5, round(value, 2), 1)
             if (value := hp1.get("temperatureOutside")) is not None:
                 _update_device(self, 9, round(value, 1), 1)
+            #if (value := hp1.get("power")) is not None:
+            #    _update_device(self, 11, round(value, 2), 1)
+            #if (value := hp1.get("powerInput")) is not None:
+            #    _update_device(self, 12, round(value, 2), 1)
             if (value := hp1.get("power")) is not None:
                 _update_device(self, 11, round(value, 2), 1)
+                _update_energy(self, 37, value)
+
             if (value := hp1.get("powerInput")) is not None:
                 _update_device(self, 12, round(value, 2), 1)
+                _update_energy(self, 36, value)
+
             if (value := hp1.get("limitedByCop")) is not None:
                 _update_device(self, 22, '', int(value))
             if (value := hp1.get("silentModeStatus")) is not None:
@@ -276,10 +432,18 @@ def _process_response(self, data):
                 _update_device(self, 27, round(value, 2), 1)
             if (value := hp2.get("temperatureOutside")) is not None:
                 _update_device(self, 28, round(value, 1), 1)
+            #if (value := hp2.get("power")) is not None:
+            #    _update_device(self, 29, round(value, 2), 1)
+            #if (value := hp2.get("powerInput")) is not None:
+            #    _update_device(self, 30, round(value, 2), 1)
             if (value := hp2.get("power")) is not None:
                 _update_device(self, 29, round(value, 2), 1)
+                _update_energy(self, 39, value)
+
             if (value := hp2.get("powerInput")) is not None:
                 _update_device(self, 30, round(value, 2), 1)
+                _update_energy(self, 38, value)
+
             if (value := hp2.get("limitedByCop")) is not None:
                 _update_device(self, 32, '', int(value))
             if (value := hp2.get("silentModeStatus")) is not None:
